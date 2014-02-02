@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+<head>
+  <title>RPC</title>
+  <style>
+body {
+  font-family: arial, sans-sherif;
+}
+  </style>
+</head>
+<body>
+  <h1>JSON-RPC</h1>
+  <p>Wrap JavaScript/PHP interaction by wrapping calls into a JSON-RPC style message.</p>
+  <pre></pre>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/q.js/1.0.0/q.min.js"></script>
+  <script>
+"use strict";
+
+Q.stopUnhandledRejectionTracking();
+
+function rpc(method, params) {
+  var deferred = Q.defer();
+  var id = Date.now();
+  $.ajax({
+    method: 'POST',
+    url: 'rpc.php',
+    data: JSON.stringify({
+      method: method,
+      params: Array.prototype.slice.call(params),
+      id: id
+    }),
+    'processData': false,
+    'contentType': 'application/json',
+    success: function(r) {
+      deferred.resolve(r.result);
+    },
+    error: function(r) {
+      deferred.reject(r.responseJSON.error);
+    },
+  })
+  return deferred.promise;
+}
+
+function hello(name) { return rpc('hello', arguments); }
+function register(name, password) { return rpc('register', arguments); }
+function whoami() { return rpc('whoami', arguments); }
+function login(name, password) { return rpc('login', arguments); }
+function logout(name, password) { return rpc('logout', arguments); }
+function destroy(name, password) { return rpc('destroy', arguments); }
+function contact(email, subject, message) { return rpc('destroy', arguments); }
+
+function log() {
+  var args = Array.prototype.slice.call(arguments);
+  for(var i in args) {
+    console.log(args[i]);
+  }
+}
+  </script>
+  <script>
+var asserts = {}
+asserts['register'] = false
+asserts['register_already_exists'] = false
+asserts['whoami'] = false
+asserts['logout'] = false
+asserts['login_wrong'] = false
+asserts['login_ok'] = false
+asserts['destroy'] = false
+
+// destroy('name@mail.com', 's4nd3r').done(function() {
+  Q.all([
+    register('name@mail.com', 's4nd3r').then(function(result) {
+      asserts['register'] = true
+    }),
+    register('name@mail.com', 's4nd3r').fail(function(error) {
+      asserts['register_already_exists'] = true
+    }),
+    whoami().then(function(result) {
+      asserts['whoami'] = true
+    }),
+    logout().then(function(error) {
+      whoami().then(function(result) {
+        asserts['logout'] = true
+      })
+    }),
+    login('name@mail.com', 's4nder').fail(function(error) {
+      asserts['login_wrong'] = true
+    }),
+    login('name@mail.com', 's4nd3r').then(function(result) {
+      whoami().then(function(result) {
+        asserts['login_ok'] = true
+      })
+    }),
+    destroy('name@mail.com', 's4nd3r').then(function(result) {
+      asserts['destroy'] = true
+    })
+  ]).then(function() {
+    $('pre').html(JSON.stringify(asserts, null, '  '))
+  }).fail(function(error) {
+    console.log(error)
+  })
+// })
+  </script>
+
+</body>
+</html>
